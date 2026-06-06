@@ -39,7 +39,6 @@ from vllm.utils.network_utils import (
     is_valid_ipv6_address,
 )
 from vllm.v1.utils import get_engine_client_zmq_addr
-from vllm.v1.engine.utils import random_port_exclude
 
 logger = init_logger(__name__)
 
@@ -403,10 +402,10 @@ class MessageQueue:
             self.local_socket.setsockopt(XPUB_VERBOSE, True)
             if platform.system() == "Windows":
                 local_subscribe_addr = get_engine_client_zmq_addr(
-                    True, None, random_port_exclude(10000, 65534)
+                    False, None, get_open_port()
                 )
                 local_notify_addr = get_engine_client_zmq_addr(
-                    True, None, random_port_exclude(10000, 65534)
+                    False, None, get_open_port()
                 )
             else:
                 local_subscribe_addr = get_open_zmq_ipc_path()

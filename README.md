@@ -62,6 +62,8 @@ set CUDA_ROOT=CUDA_INSTALLATION_PATH
 ```
 set DISTUTILS_USE_SDK=1
 set VLLM_TARGET_DEVICE=cuda
+#replace YOUR_GPU_ARCH with the GPU architectures you want to build against, for example, for RTX 30XX, RTX 40XX and RTX 50XX: 8.6;8.9;12.0
+set TORCH_CUDA_ARCH_LIST=YOUR_GPU_ARCH
 #(replace 10 with your desired cpu threads to use in parallel to speed up compilation)
 set MAX_JOBS=10
 

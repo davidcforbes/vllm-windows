@@ -338,6 +338,7 @@ if(VLLM_GPU_LANG STREQUAL "CUDA")
     string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus /Zc:preprocessor /DWIN32_LEAN_AND_MEAN")
 	set(CMAKE_CUDA_FLAGS_DEBUG "")
+	include_directories("${CMAKE_CURRENT_SOURCE_DIR}/csrc")
   endif()
 
   # Use the specified CUTLASS source directory for compilation if VLLM_CUTLASS_SRC_DIR is provided

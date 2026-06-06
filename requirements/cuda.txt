@@ -13,8 +13,9 @@ torchvision==0.26.0; sys_platform != "win32" # Required for phi3v processor. See
 torchvision==0.26.0+cu130; sys_platform == "win32"
 # FlashInfer should be updated together with the Dockerfile
 flashinfer-python==0.6.12; sys_platform != "win32"
-flashinfer-python @ https://github.com/SystemPanic/flashinfer-windows/releases/download/v0.6.12/flashinfer_python-0.6.12-py3-none-any.whl ; sys_platform == "win32"
-flashinfer-cubin==0.6.12
+flashinfer-cubin==0.6.12; sys_platform != "win32"
+flashinfer-python @ https://github.com/SystemPanic/flashinfer-windows/releases/download/v0.6.11.post3/flashinfer_python-0.6.11.post3-py3-none-any.whl ; sys_platform == "win32"
+flashinfer-cubin==0.6.11.post3; sys_platform == "win32"
 apache-tvm-ffi==0.1.9
 tilelang==0.1.9; sys_platform != "win32"
 # Cap nvidia-cudnn-frontend (transitive dep of flashinfer) due to
