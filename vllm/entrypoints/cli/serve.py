@@ -338,6 +338,11 @@ def run_multi_api_server(args: argparse.Namespace):
         )
 
         if rust_frontend_path:
+            # On Windows the pre-bound socket cannot be inherited by the Rust
+            # child; release it so the Rust frontend can bind args.host/args.port
+            # itself (see RustFrontendProcessManager).
+            if platform.system() == "Windows":
+                sock.close()
             # Start rust front-end process.
             api_server_manager = RustFrontendProcessManager(
                 binary_path=rust_frontend_path,

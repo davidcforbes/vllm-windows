@@ -3,14 +3,26 @@
 //! This module hides the difference between TCP and Unix-domain listeners so
 //! the rest of the server can bind or inherit one socket and pass it to
 //! `axum::serve(...)` through a single type.
+//!
+//! On Windows only TCP listeners are supported: there are no Unix-domain
+//! sockets and the Python supervisor passes `--host/--port` instead of an
+//! inherited socket fd, so the Unix-domain and inherited-fd paths are compiled
+//! out and rejected at bind time.
 
 use std::io::Result;
+#[cfg(unix)]
 use std::net::TcpListener as StdTcpListener;
+#[cfg(unix)]
 use std::os::fd::{FromRawFd, IntoRawFd, OwnedFd};
+#[cfg(unix)]
 use std::os::unix::net::UnixListener as StdUnixListener;
 
+#[cfg(unix)]
 use socket2::Socket;
-use tokio::net::{TcpListener, TcpStream, UnixListener, UnixStream};
+use tokio::net::{TcpListener, TcpStream};
+#[cfg(unix)]
+use tokio::net::{UnixListener, UnixStream};
+#[cfg(unix)]
 use tokio_util::either::Either;
 
 use crate::HttpListenerMode;
@@ -20,6 +32,7 @@ use crate::HttpListenerMode;
 #[derive(Debug)]
 pub enum Listener {
     Tcp(TcpListener),
+    #[cfg(unix)]
     Unix(UnixListener),
 }
 
@@ -33,8 +46,18 @@ impl Listener {
             HttpListenerMode::BindTcp { host, port } => {
                 Ok(Self::Tcp(TcpListener::bind((host.as_str(), *port)).await?))
             }
+            #[cfg(unix)]
             HttpListenerMode::BindUnix { path } => Ok(Self::Unix(UnixListener::bind(path)?)),
+            #[cfg(unix)]
             HttpListenerMode::InheritedFd { fd } => Self::from_inherited_fd(*fd),
+            #[cfg(windows)]
+            HttpListenerMode::BindUnix { .. } | HttpListenerMode::InheritedFd { .. } => {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    "Unix-domain sockets and inherited listener fds are not supported on \
+                     Windows; pass --host/--port to bind a TCP listener instead",
+                ))
+            }
         }
     }
 
@@ -43,6 +66,7 @@ impl Listener {
     pub fn local_addr(&self) -> Result<String> {
         match self {
             Self::Tcp(listener) => Ok(listener.local_addr()?.to_string()),
+            #[cfg(unix)]
             Self::Unix(listener) => Ok(match listener.local_addr()?.as_pathname() {
                 Some(path) => format!("unix:{}", path.display()),
                 None => "unix:<unnamed>".to_string(),
@@ -50,6 +74,7 @@ impl Listener {
         }
     }
 
+    #[cfg(unix)]
     fn from_inherited_fd(fd: i32) -> Result<Self> {
         // SAFETY: We trust the caller to only pass valid listener fds, and we only use
         // this fd once to create a single listener.
@@ -73,6 +98,7 @@ impl Listener {
 }
 
 /// Allow the unified listener to plug directly into `axum::serve(...)`.
+#[cfg(unix)]
 impl axum::serve::Listener for Listener {
     type Addr = Either<std::net::SocketAddr, tokio::net::unix::SocketAddr>;
     type Io = Either<TcpStream, UnixStream>;
@@ -98,7 +124,26 @@ impl axum::serve::Listener for Listener {
     }
 }
 
-#[cfg(test)]
+/// Allow the unified listener to plug directly into `axum::serve(...)`. On
+/// Windows the listener is always TCP, so the accepted IO/address types are
+/// plain TCP types.
+#[cfg(windows)]
+impl axum::serve::Listener for Listener {
+    type Addr = std::net::SocketAddr;
+    type Io = TcpStream;
+
+    async fn accept(&mut self) -> (Self::Io, Self::Addr) {
+        let Self::Tcp(listener) = self;
+        listener.accept().await
+    }
+
+    fn local_addr(&self) -> Result<Self::Addr> {
+        let Self::Tcp(listener) = self;
+        listener.local_addr()
+    }
+}
+
+#[cfg(all(test, unix))]
 mod tests {
     use std::net::{Ipv4Addr, SocketAddrV4};
     use std::os::fd::IntoRawFd;

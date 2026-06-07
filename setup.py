@@ -36,7 +36,9 @@ def load_module_from_path(module_name, path):
 ROOT_DIR = Path(__file__).parent
 logger = logging.getLogger(__name__)
 
-PRECOMPILED_RUST_FRONTEND_PATH = ROOT_DIR / "vllm" / "vllm-rs"
+# setuptools-rust appends `.exe` to the binary name on Windows.
+RUST_FRONTEND_BIN = "vllm-rs.exe" if platform.system() == "Windows" else "vllm-rs"
+PRECOMPILED_RUST_FRONTEND_PATH = ROOT_DIR / "vllm" / RUST_FRONTEND_BIN
 
 # cannot import envs directly because it depends on vllm,
 #  which is not installed yet
@@ -761,7 +763,7 @@ class precompiled_wheel_utils:
                         }
                     )
                 if extract_rust_frontend:
-                    exact_members.add("vllm/vllm-rs")
+                    exact_members.add(f"vllm/{RUST_FRONTEND_BIN}")
 
                 flash_attn_regex = re.compile(
                     r"vllm/vllm_flash_attn/(?:[^/.][^/]*/)*(?!\.)[^/]*\.py"
@@ -1160,8 +1162,8 @@ if USE_PRECOMPILED_RUST_FRONTEND:
 # pre-built in a separate Docker build stage), ship it as-is.
 if PRECOMPILED_RUST_FRONTEND_PATH.exists():
     vllm_files = package_data.setdefault("vllm", [])
-    if "vllm-rs" not in vllm_files:
-        vllm_files.append("vllm-rs")
+    if RUST_FRONTEND_BIN not in vllm_files:
+        vllm_files.append(RUST_FRONTEND_BIN)
 
 if _no_device():
     ext_modules = []

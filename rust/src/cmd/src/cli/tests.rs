@@ -165,7 +165,7 @@ fn frontend_args_json_passes_enable_request_id_headers_into_config() {
     let Command::Frontend(args) = cli.command else {
         panic!("expected frontend args");
     };
-    let config = args.into_config();
+    let config = args.into_config().unwrap();
     assert!(config.enable_request_id_headers);
 }
 
@@ -251,7 +251,11 @@ fn frontend_args_accept_json() {
         Cli {
             command: Frontend(
                 FrontendArgs {
-                    listen_fd: 3,
+                    listen_fd: Some(
+                        3,
+                    ),
+                    host: None,
+                    port: None,
                     input_address: "ipc:///tmp/input.sock",
                     output_address: "ipc:///tmp/output.sock",
                     coordinator_address: Some(
@@ -751,15 +755,21 @@ fn serve_frontend_config_uses_dp_address_as_advertised_host() {
     assert_eq!(handshake_address, "tcp://10.99.48.128:29550");
     assert_eq!(advertised_host, "10.99.48.128");
     assert_eq!(*engine_count, 4);
+    // Local frontend-to-engine transport uses Unix-domain `ipc://` endpoints on
+    // Unix and loopback `tcp://` endpoints on Windows (no named pipes).
+    #[cfg(unix)]
+    let expected_scheme = "ipc://";
+    #[cfg(windows)]
+    let expected_scheme = "tcp://";
     assert!(
         local_input_address
             .as_deref()
-            .is_some_and(|address| address.starts_with("ipc://"))
+            .is_some_and(|address| address.starts_with(expected_scheme))
     );
     assert!(
         local_output_address
             .as_deref()
-            .is_some_and(|address| address.starts_with("ipc://"))
+            .is_some_and(|address| address.starts_with(expected_scheme))
     );
     assert_ne!(local_input_address, local_output_address);
 
@@ -909,7 +919,7 @@ fn frontend_config_uses_external_coordinator_when_coordinator_address_is_present
     let Command::Frontend(args) = cli.command else {
         panic!("expected frontend args");
     };
-    let config = args.into_config();
+    let config = args.into_config().unwrap();
 
     expect![[r#"
         Config {

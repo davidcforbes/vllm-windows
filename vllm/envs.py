@@ -567,12 +567,14 @@ def _resolve_rust_frontend_path() -> str | None:
 
     if raw.lower() in ("auto", "1", "true"):
         pkg_dir = os.path.dirname(os.path.abspath(__file__))
-        candidate = os.path.join(pkg_dir, "vllm-rs")
+        # setuptools-rust appends `.exe` to the binary name on Windows.
+        exe_name = "vllm-rs.exe" if os.name == "nt" else "vllm-rs"
+        candidate = os.path.join(pkg_dir, exe_name)
         if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
             return candidate
 
         raise FileNotFoundError(
-            "VLLM_RUST_FRONTEND_PATH=auto but the vllm-rs binary was "
+            f"VLLM_RUST_FRONTEND_PATH=auto but the {exe_name} binary was "
             f"not found at {candidate}. "
             "Build with setuptools-rust or set the path explicitly."
         )

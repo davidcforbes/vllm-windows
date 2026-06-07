@@ -19,6 +19,7 @@ pub use config::{Config, CoordinatorMode, HttpListenerMode};
 use tokio::net::TcpListener;
 use tokio::time::{Instant, sleep_until};
 use tokio_stream::wrappers::TcpListenerStream;
+#[cfg(unix)]
 use tokio_util::either::Either;
 use tokio_util::sync::CancellationToken;
 use tonic::transport::Server as TonicServer;
@@ -158,7 +159,17 @@ where
     // Set TCP_NODELAY on accepted connections to reduce latency.
     // By `tap_io` we will do this on every accepted connection.
     let listener = listener.tap_io(|io| {
-        if let Either::Left(tcp_stream) = io
+        // On Unix the listener may also accept Unix-domain connections, which
+        // are not TCP streams; only TCP streams support `TCP_NODELAY`. On
+        // Windows the listener is always TCP.
+        #[cfg(unix)]
+        let tcp_stream = match io {
+            Either::Left(tcp_stream) => Some(tcp_stream),
+            Either::Right(_) => None,
+        };
+        #[cfg(windows)]
+        let tcp_stream = Some(io);
+        if let Some(tcp_stream) = tcp_stream
             && let Err(err) = tcp_stream.set_nodelay(true)
         {
             trace!(error = %err, "failed to enable TCP_NODELAY on accepted HTTP connection");
