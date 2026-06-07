@@ -1,0 +1,526 @@
+{
+  "configs": [
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 512,
+      "vector_dim": 1024,
+      "n_chunks": 888,
+      "chunks_per_doc": 111.0,
+      "embed_seconds": 8.297,
+      "prompt_tokens": 454676,
+      "tokens_per_sec": 54801.6,
+      "p50_ms": 135.1,
+      "p95_ms": 160.1,
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 1.0,
+      "chunk_hit@1": 0.85,
+      "chunk_hit@5": 1.0
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 2048,
+      "vector_dim": 1024,
+      "n_chunks": 224,
+      "chunks_per_doc": 28.0,
+      "embed_seconds": 7.716,
+      "prompt_tokens": 452014,
+      "tokens_per_sec": 58581.0,
+      "p50_ms": 542.2,
+      "p95_ms": 569.7,
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 1.0,
+      "chunk_hit@1": 0.6,
+      "chunk_hit@5": 0.975
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 8192,
+      "vector_dim": 1024,
+      "n_chunks": 56,
+      "chunks_per_doc": 7.0,
+      "embed_seconds": 11.337,
+      "prompt_tokens": 444022,
+      "tokens_per_sec": 39165.7,
+      "p50_ms": 3195.1,
+      "p95_ms": 3308.2,
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 1.0,
+      "chunk_hit@1": 0.6,
+      "chunk_hit@5": 0.825
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 512,
+      "vector_dim": 2048,
+      "n_chunks": 824,
+      "chunks_per_doc": 103.0,
+      "embed_seconds": 6.258,
+      "prompt_tokens": 419375,
+      "tokens_per_sec": 67010.7,
+      "p50_ms": 103.2,
+      "p95_ms": 127.3,
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 1.0,
+      "chunk_hit@1": 0.9,
+      "chunk_hit@5": 1.0
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 2048,
+      "vector_dim": 2048,
+      "n_chunks": 208,
+      "chunks_per_doc": 26.0,
+      "embed_seconds": 5.286,
+      "prompt_tokens": 418143,
+      "tokens_per_sec": 79104.3,
+      "p50_ms": 396.5,
+      "p95_ms": 413.5,
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 1.0,
+      "chunk_hit@1": 0.825,
+      "chunk_hit@5": 1.0
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 8192,
+      "vector_dim": 2048,
+      "n_chunks": 56,
+      "chunks_per_doc": 7.0,
+      "embed_seconds": 8.383,
+      "prompt_tokens": 415535,
+      "tokens_per_sec": 49567.9,
+      "p50_ms": 2392.4,
+      "p95_ms": 2470.3,
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 1.0,
+      "chunk_hit@1": 0.725,
+      "chunk_hit@5": 1.0
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 16384,
+      "vector_dim": 2048,
+      "n_chunks": 32,
+      "chunks_per_doc": 4.0,
+      "embed_seconds": 12.711,
+      "prompt_tokens": 415535,
+      "tokens_per_sec": 32691.6,
+      "p50_ms": 6342.9,
+      "p95_ms": 6463.0,
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 1.0,
+      "chunk_hit@1": 0.375,
+      "chunk_hit@5": 1.0
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 32768,
+      "vector_dim": 2048,
+      "n_chunks": 16,
+      "chunks_per_doc": 2.0,
+      "embed_seconds": 18.373,
+      "prompt_tokens": 395847,
+      "tokens_per_sec": 21544.5,
+      "p50_ms": 18355.4,
+      "p95_ms": 18355.4,
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 1.0,
+      "chunk_hit@1": 0.45,
+      "chunk_hit@5": 1.0
+    }
+  ],
+  "by_depth": [
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 512,
+      "depth": "0.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 512,
+      "depth": "0.25",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 512,
+      "depth": "0.50",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 512,
+      "depth": "0.75",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 512,
+      "depth": "1.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 2048,
+      "depth": "0.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 2048,
+      "depth": "0.25",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 2048,
+      "depth": "0.50",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 2048,
+      "depth": "0.75",
+      "recall@5": 1.0,
+      "chunk_hit@5": 0.875,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 2048,
+      "depth": "1.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 8192,
+      "depth": "0.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 8192,
+      "depth": "0.25",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 8192,
+      "depth": "0.50",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 8192,
+      "depth": "0.75",
+      "recall@5": 1.0,
+      "chunk_hit@5": 0.125,
+      "n": 8
+    },
+    {
+      "model": "bge-m3",
+      "dims": "1024(native)",
+      "chunk_size": 8192,
+      "depth": "1.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 512,
+      "depth": "0.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 512,
+      "depth": "0.25",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 512,
+      "depth": "0.50",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 512,
+      "depth": "0.75",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 512,
+      "depth": "1.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 2048,
+      "depth": "0.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 2048,
+      "depth": "0.25",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 2048,
+      "depth": "0.50",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 2048,
+      "depth": "0.75",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 2048,
+      "depth": "1.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 8192,
+      "depth": "0.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 8192,
+      "depth": "0.25",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 8192,
+      "depth": "0.50",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 8192,
+      "depth": "0.75",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 8192,
+      "depth": "1.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 16384,
+      "depth": "0.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 16384,
+      "depth": "0.25",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 16384,
+      "depth": "0.50",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 16384,
+      "depth": "0.75",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 16384,
+      "depth": "1.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 32768,
+      "depth": "0.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 32768,
+      "depth": "0.25",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 32768,
+      "depth": "0.50",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 32768,
+      "depth": "0.75",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    },
+    {
+      "model": "voyage-4-nano",
+      "dims": "2048(native)",
+      "chunk_size": 32768,
+      "depth": "1.00",
+      "recall@5": 1.0,
+      "chunk_hit@5": 1.0,
+      "n": 8
+    }
+  ],
+  "skipped": [
+    {
+      "model": "bge-m3",
+      "reason": "endpoint down: ConnectionError(MaxRetryError('HTTPConnectionPool(host=\\'127.0.0.1\\', port=8001): Max retries exceeded with url: /v1/models (Caused by NewConnectionError(\"HTTPConnection(host=\\'127.0.0.1\\', port=8001): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it\"))'))"
+    }
+  ],
+  "n_docs": 8,
+  "n_queries": 40
+}
