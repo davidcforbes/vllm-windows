@@ -5,6 +5,7 @@ import contextlib
 import json
 import multiprocessing
 import threading
+import platform
 import time
 import weakref
 from collections.abc import Callable, Sequence
@@ -23,7 +24,16 @@ from typing import (
 )
 
 import torch
-import uvloop
+import os
+if platform.system() == "Windows":
+    import winloop as uvloop_impl
+    # Windows does not support fork
+    os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
+
+    # Disable libuv on Windows by default
+    os.environ["USE_LIBUV"] = os.environ.get("USE_LIBUV", "0")
+else:
+    import uvloop as uvloop_impl
 from torch.autograd.profiler import record_function
 
 import vllm.envs as envs
@@ -340,23 +350,33 @@ class RustFrontendProcessManager:
         stats_update_address: str | None = None,
     ):
         import os
+        import platform
         import subprocess
 
-        fd = sock.fileno()
-        os.set_inheritable(fd, True)
+        cmd = [binary_path, "frontend"]
+        popen_kwargs: dict[str, Any] = {}
+        if platform.system() == "Windows":
+            # Windows cannot hand an inherited listening-socket fd to a
+            # non-Python child, so the Rust frontend binds its own TCP listener.
+            # The caller releases the pre-bound socket before we launch.
+            host = args.host or "127.0.0.1"
+            cmd.extend(["--host", str(host), "--port", str(args.port)])
+        else:
+            fd = sock.fileno()
+            os.set_inheritable(fd, True)
+            cmd.extend(["--listen-fd", str(fd)])
+            popen_kwargs["pass_fds"] = (fd,)
 
-        cmd = [
-            binary_path,
-            "frontend",
-            "--listen-fd",
-            str(fd),
-            "--input-address",
-            input_address,
-            "--output-address",
-            output_address,
-            "--engine-count",
-            str(engine_count),
-        ]
+        cmd.extend(
+            [
+                "--input-address",
+                input_address,
+                "--output-address",
+                output_address,
+                "--engine-count",
+                str(engine_count),
+            ]
+        )
         if stats_update_address is not None:
             cmd.extend(["--coordinator-address", stats_update_address])
         from vllm.entrypoints.serve.utils.api_utils import jsonify_non_default_args
@@ -368,7 +388,7 @@ class RustFrontendProcessManager:
         cmd.extend(["--args-json", args_json])
 
         logger.info("Launching Rust frontend: %s", " ".join(cmd))
-        self._proc = subprocess.Popen(cmd, pass_fds=(fd,))
+        self._proc = subprocess.Popen(cmd, **popen_kwargs)
 
         # Create a process wrapper with a sentinel fd for monitoring
         self.processes: list[_SubprocessWrapper] = [
@@ -490,7 +510,7 @@ def run_api_server_worker_proc(
     set_process_title("APIServer", str(server_index))
     decorate_logs()
 
-    uvloop.run(
+    uvloop_impl.run(
         run_server_worker(listen_address, sock, args, client_config, **uvicorn_kwargs)
     )
 

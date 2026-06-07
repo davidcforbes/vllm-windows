@@ -8,6 +8,7 @@ mod unsupported;
 
 use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
+#[cfg(unix)]
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -17,6 +18,7 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use thiserror_ext::AsReport as _;
+#[cfg(unix)]
 use uuid::Uuid;
 use vllm_engine_core_client::TransportMode;
 use vllm_managed_engine::ManagedEngineConfig;
@@ -221,7 +223,7 @@ impl SharedRuntimeArgs {
     /// inherits an already open HTTP listener from the supervisor process.
     fn into_bootstrapped_config(
         self,
-        listen_fd: i32,
+        listener_mode: HttpListenerMode,
         input_address: String,
         output_address: String,
         coordinator_address: Option<String>,
@@ -243,7 +245,7 @@ impl SharedRuntimeArgs {
             },
             model: self.model,
             served_model_name: self.served_model_name,
-            listener_mode: HttpListenerMode::InheritedFd { fd: listen_fd },
+            listener_mode,
             tool_call_parser: self.tool_call_parser,
             reasoning_parser: self.reasoning_parser,
             renderer: self.renderer,
@@ -322,9 +324,18 @@ fn parse_runtime_args_json(value: &str) -> Result<SharedRuntimeArgs, String> {
 #[educe(Debug)]
 pub struct FrontendArgs {
     /// Inherited listening socket file descriptor passed by the Python
-    /// supervisor.
+    /// supervisor (Unix only). Mutually exclusive with `--host`/`--port`.
     #[arg(long)]
-    pub listen_fd: i32,
+    pub listen_fd: Option<i32>,
+    /// HTTP bind host for the OpenAI-compatible server. Used instead of
+    /// `--listen-fd` on platforms without socket-fd inheritance (Windows). Must
+    /// be paired with `--port`.
+    #[arg(long)]
+    pub host: Option<String>,
+    /// HTTP bind port for the OpenAI-compatible server. Used together with
+    /// `--host`.
+    #[arg(long)]
+    pub port: Option<u16>,
     /// Frontend input ROUTER socket address that the Python engines will
     /// connect to.
     #[arg(long)]
@@ -349,14 +360,30 @@ pub struct FrontendArgs {
 
 impl FrontendArgs {
     /// Convert the CLI arguments into the OpenAI server's runtime config.
-    pub fn into_config(self) -> Config {
-        self.runtime.into_bootstrapped_config(
-            self.listen_fd,
+    ///
+    /// The HTTP listener is selected from the flags the supervisor passed:
+    /// `--listen-fd` adopts an inherited socket (Unix), while `--host`/`--port`
+    /// binds a fresh TCP listener (the only option on Windows).
+    pub fn into_config(self) -> Result<Config, String> {
+        let listener_mode = match (self.listen_fd, self.host, self.port) {
+            (Some(fd), None, None) => HttpListenerMode::InheritedFd { fd },
+            (None, Some(host), Some(port)) => HttpListenerMode::BindTcp { host, port },
+            (Some(_), _, _) => {
+                return Err("--listen-fd cannot be combined with --host/--port".to_string());
+            }
+            (None, _, _) => {
+                return Err("the `frontend` command requires either --listen-fd or both \
+                            --host and --port"
+                    .to_string());
+            }
+        };
+        Ok(self.runtime.into_bootstrapped_config(
+            listener_mode,
             self.input_address,
             self.output_address,
             self.coordinator_address,
             self.engine_count,
-        )
+        ))
     }
 }
 
@@ -432,6 +459,7 @@ impl ServeArgs {
 }
 
 /// Allocate fresh IPC endpoints for one managed frontend instance.
+#[cfg(unix)]
 fn frontend_ipc_addresses() -> (String, String) {
     let preferred_base_path = std::env::var_os("VLLM_RPC_BASE_PATH")
         .map(PathBuf::from)
@@ -446,6 +474,26 @@ fn frontend_ipc_addresses() -> (String, String) {
         format!("ipc://{}", input.to_string_lossy()),
         format!("ipc://{}", output.to_string_lossy()),
     )
+}
+
+/// Allocate fresh loopback TCP endpoints for one managed frontend instance.
+///
+/// ZeroMQ `ipc://` maps to named pipes on Windows, which the Python engine side
+/// does not negotiate, so loopback TCP is used for the local frontend-to-engine
+/// transport instead.
+#[cfg(windows)]
+fn frontend_ipc_addresses() -> (String, String) {
+    (allocate_loopback_endpoint(), allocate_loopback_endpoint())
+}
+
+/// Reserve an ephemeral loopback port and render it as a `tcp://` endpoint.
+#[cfg(windows)]
+fn allocate_loopback_endpoint() -> String {
+    let port = std::net::TcpListener::bind(("127.0.0.1", 0))
+        .and_then(|listener| listener.local_addr())
+        .map(|addr| addr.port())
+        .expect("failed to allocate an ephemeral loopback port for the frontend transport");
+    format!("tcp://127.0.0.1:{port}")
 }
 
 #[cfg(test)]

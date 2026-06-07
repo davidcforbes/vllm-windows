@@ -26,6 +26,10 @@ vLLM for Windows build & kernels. This repository will be updated when new versi
 
 #### NEW FEATURE 🔥 CUDA 13 + Blackwell GPU support on Windows
 
+#### NEW FEATURE 🔥 Rust frontend (`vllm-rs`) support on Windows
+
+The optional high-performance Rust serving frontend now builds and runs on Windows. Enable it with `set VLLM_USE_RUST_FRONTEND=1` before `vllm serve`. See [`rust/README.md`](rust/README.md#windows) for usage and constraints.
+
 #### NEW FEATURE 🔥 NCCL + Tensor / Pipeline parallelism for multi-gpu inference support on Windows
 
 1. Follow the instructions [here](https://github.com/SystemPanic/nccl-windows/tree/nccl-windows#building-from-source) to compile NCCL for your system.
@@ -62,6 +66,8 @@ set CUDA_ROOT=CUDA_INSTALLATION_PATH
 ```
 set DISTUTILS_USE_SDK=1
 set VLLM_TARGET_DEVICE=cuda
+#replace YOUR_GPU_ARCH with the GPU architectures you want to build against, for example, for RTX 30XX, RTX 40XX and RTX 50XX: 8.6;8.9;12.0
+set TORCH_CUDA_ARCH_LIST=YOUR_GPU_ARCH
 #(replace 10 with your desired cpu threads to use in parallel to speed up compilation)
 set MAX_JOBS=10
 
@@ -88,12 +94,20 @@ set VLLM_FORCE_FA3_WINDOWS_BUILD=1
 
 ```
 
+6. Enable long paths on Windows and Git if you didn't enabled it:
+
+````
+reg add HKLM\SYSTEM\CurrentControlSet\Control\FileSystem /v LongPathsEnabled /t REG_DWORD /d 1 /f
+git config --global core.longpaths true
+git config --system core.longpaths true
+````
+
 ##### IMPORTANT FOR CUDA 13.0 TO CUDA 13.2 BUILDS:
 CUDA 13.0 to CUDA 13.2 cuda.h currently has 128 byte alignment. MSVC does not support yet passing over-aligned types like alignas(128) by value as function parameters. CUDA 13.3 will revert back to 64 byte alignment, but if you have installed a CUDA 13 version before 13.3, you need to patch it.
 
 To patch, open an elevated command line (execute cmd.exe as Administrator), and run `python C:\vllm-windows\fix_cuda_13_align.py` once time before building the project.
 
-6. Build & install:
+7. Build & install:
 ```
 #Install torch 2.11 CUDA 13 (change cu130 with your installed CUDA version)
 pip install torch==2.11+cu130 torchaudio==2.11+cu130 torchvision==0.26.0+cu130 --index-url https://download.pytorch.org/whl/cu130
@@ -109,6 +123,8 @@ pip install . --no-build-isolation -vvv
 
 🔥 We have built a vLLM website to help you get started with vLLM. Please visit [vllm.ai](https://vllm.ai) to learn more.
 For events, please visit [vllm.ai/events](https://vllm.ai/events) to join us.
+
+---
 
 ## About
 

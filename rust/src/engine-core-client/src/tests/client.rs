@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryFrom;
 use std::io::Cursor;
+#[cfg(unix)]
 use std::path::PathBuf;
+#[cfg(unix)]
 use std::process::Command;
 use std::sync::Once;
 use std::time::Duration;
@@ -18,17 +20,23 @@ use zeromq::{DealerSocket, PushSocket, SocketOptions, SubSocket, XPubSocket, Zmq
 
 use crate::protocol::handshake::{HandshakeInitMessage, ReadyMessage};
 use crate::protocol::logprobs::MaybeWireLogprobs;
+// Multimodal fixture types are only used by the Unix-gated python-compat test.
+#[cfg(unix)]
 use crate::protocol::multimodal::{
     MmFeatureSpec, MmField, MmFieldElem, MmFlatField, MmKwargValue, MmSlice, PlaceholderRange,
     SliceSpec,
 };
 use crate::protocol::stats::SchedulerStats;
+#[cfg(unix)]
 use crate::protocol::tensor::WireTensor;
 use crate::protocol::utility::{UtilityOutput, UtilityResultEnvelope};
 use crate::protocol::{
     EngineCoreFinishReason, EngineCoreOutput, EngineCoreOutputs, EngineCoreRequest,
-    EngineCoreRequestType, EngineCoreSamplingParams, decode_engine_core_outputs,
+    EngineCoreRequestType, EngineCoreSamplingParams,
 };
+// Only used by the Unix-gated python-fixture compatibility test.
+#[cfg(unix)]
+use crate::protocol::decode_engine_core_outputs;
 use crate::test_utils::{
     IpcNamespace, setup_bootstrapped_mock_engine, setup_mock_engine_sockets,
     setup_mock_engine_with_init, spawn_mock_engine_task,
@@ -88,6 +96,7 @@ fn expect_sample_logprobs(actual: &MaybeWireLogprobs) {
     .assert_debug_eq(actual.as_direct().expect("logprobs resolved"));
 }
 
+#[cfg(unix)]
 fn expect_prompt_logprobs(actual: &MaybeWireLogprobs) {
     expect_test::expect![[r#"
         Logprobs {
@@ -160,6 +169,7 @@ fn sample_request_with_id(request_id: &str) -> EngineCoreRequest {
     }
 }
 
+#[cfg(unix)]
 fn sample_multimodal_request() -> EngineCoreRequest {
     EngineCoreRequest {
         request_id: "req-mm".to_string(),
@@ -2420,6 +2430,10 @@ async fn reset_prefix_cache_returns_false_when_any_engine_fails() {
     client.shutdown().await.unwrap();
 }
 
+// Executes the Python fixture script directly via its shebang, which only works
+// on Unix; Windows cannot run a `.py` path as a process. The msgpack encoding
+// under test is platform-independent, so Unix coverage is sufficient.
+#[cfg(unix)]
 #[test]
 fn python_msgpack_fixtures_match_rust_encoding() {
     init_tracing();

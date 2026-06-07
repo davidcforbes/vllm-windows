@@ -76,6 +76,13 @@ impl ManagedEngineConfig {
 pub struct ManagedEngineHandle {
     child: Arc<Mutex<Child>>,
     shutdown_started: Arc<AtomicBool>,
+    /// Windows Job Object owning the engine subtree. Dropping it (via the last
+    /// `Arc`) tears down the whole tree thanks to `KILL_ON_JOB_CLOSE`, which is
+    /// the closest analog to a POSIX process group. `None` if the job could not
+    /// be created, in which case shutdown falls back to killing the immediate
+    /// child only.
+    #[cfg(windows)]
+    job: Arc<Option<process_group::JobObject>>,
 }
 
 impl ManagedEngineHandle {
@@ -96,9 +103,18 @@ impl ManagedEngineHandle {
 
         let child = command.spawn().context("failed to spawn managed engine")?;
 
+        // On Windows, assign the freshly spawned child to a kill-on-close job
+        // object before it has a chance to spawn its own workers. This must
+        // happen while we still have a borrow of `child`, before it is moved
+        // into the handle below.
+        #[cfg(windows)]
+        let job = Arc::new(process_group::assign_to_new_job(&child));
+
         Ok(Self {
             child: Arc::new(Mutex::new(child)),
             shutdown_started: Arc::new(AtomicBool::new(false)),
+            #[cfg(windows)]
+            job,
         })
     }
 
@@ -134,11 +150,21 @@ impl ManagedEngineHandle {
         let shutdown_timeout = std::cmp::max(timeout, MIN_SHUTDOWN_TIMEOUT);
 
         // First, try to gracefully terminate.
+        #[cfg(unix)]
         info!(
             pid,
             ?shutdown_timeout,
             "shutting down managed engine with SIGTERM"
         );
+        #[cfg(windows)]
+        info!(
+            pid,
+            ?shutdown_timeout,
+            "shutting down managed engine with Ctrl-Break"
+        );
+        #[cfg(unix)]
+        process_group::terminate(pid)?;
+        #[cfg(windows)]
         process_group::terminate(pid)?;
 
         // Wait for the process to exit on its own.
@@ -147,11 +173,27 @@ impl ManagedEngineHandle {
         }
 
         // If it doesn't exit within the timeout, force kill it.
+        #[cfg(unix)]
         info!(
             pid,
             "managed engine did not exit within timeout, sending SIGKILL"
         );
+        #[cfg(windows)]
+        info!(
+            pid,
+            "managed engine did not exit within timeout, terminating job object"
+        );
+        #[cfg(unix)]
         process_group::kill(pid)?;
+        #[cfg(windows)]
+        {
+            // Kill the immediate child directly, then terminate the job object
+            // (if any) to take down worker grandchildren as well.
+            let _ = self.child.lock().await.start_kill();
+            if let Some(job) = (*self.job).as_ref() {
+                process_group::kill(job)?;
+            }
+        }
 
         let _ = self.wait_for_exit().await;
         Ok(())
@@ -165,6 +207,7 @@ mod process_group {
 
     /// Place the Python child into its own process group so `serve` can tear
     /// down the whole subtree rather than just the immediate shell process.
+    #[cfg(unix)]
     pub fn configure(command: &mut Command) {
         unsafe {
             command.pre_exec(|| {
@@ -177,16 +220,19 @@ mod process_group {
     }
 
     /// Send SIGTERM to the managed Python process group.
+    #[cfg(unix)]
     pub fn terminate(pid: u32) -> Result<()> {
         signal(pid, libc::SIGTERM)
     }
 
     /// Send SIGKILL to the managed Python process group.
+    #[cfg(unix)]
     pub fn kill(pid: u32) -> Result<()> {
         signal(pid, libc::SIGKILL)
     }
 
     /// Deliver one signal to the managed Python process group.
+    #[cfg(unix)]
     fn signal(pid: u32, signal: i32) -> Result<()> {
         let rc = unsafe { libc::kill(-(pid as i32), signal) };
         if rc == 0 {
@@ -198,6 +244,138 @@ mod process_group {
             return Ok(());
         }
         Err(error).context("failed to signal managed engine process group")
+    }
+
+    // --- Windows implementation ------------------------------------------------
+
+    /// A Windows Job Object owning the managed engine subtree. Configured with
+    /// `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, so dropping it (closing the
+    /// handle) terminates every process still assigned to the job — the engine
+    /// and any worker grandchildren it spawned. This is the closest analog to a
+    /// POSIX process group.
+    #[cfg(windows)]
+    pub struct JobObject(std::os::windows::io::OwnedHandle);
+
+    // SAFETY: a job object handle is just a kernel handle; it is safe to send
+    // and share across threads (all access is through the Win32 API which is
+    // internally synchronized).
+    #[cfg(windows)]
+    unsafe impl Send for JobObject {}
+    #[cfg(windows)]
+    unsafe impl Sync for JobObject {}
+
+    /// Put the child into a new process group so a console control event can be
+    /// delivered to the whole subtree (the Windows analog of placing the child
+    /// in its own POSIX process group).
+    #[cfg(windows)]
+    pub fn configure(command: &mut Command) {
+        use windows_sys::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
+        command.creation_flags(CREATE_NEW_PROCESS_GROUP);
+    }
+
+    /// Create a kill-on-close job object and assign the spawned child to it.
+    ///
+    /// Returns `None` if the job object could not be created; the caller then
+    /// falls back to killing only the immediate child on shutdown. Assignment
+    /// failures are logged but non-fatal.
+    #[cfg(windows)]
+    pub fn assign_to_new_job(child: &Child) -> Option<JobObject> {
+        use std::os::windows::io::{FromRawHandle, OwnedHandle, RawHandle};
+
+        use windows_sys::Win32::Foundation::HANDLE;
+        use windows_sys::Win32::System::JobObjects::{
+            AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
+            SetInformationJobObject,
+        };
+
+        // SAFETY: all calls below follow the documented Win32 Job Object
+        // contract; `handle` is checked for null before being adopted by an
+        // `OwnedHandle` that closes it on drop.
+        unsafe {
+            let handle = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+            if handle.is_null() {
+                tracing::warn!(
+                    error = %io::Error::last_os_error(),
+                    "failed to create job object for managed engine; \
+                     grandchild cleanup is not guaranteed"
+                );
+                return None;
+            }
+            let job = OwnedHandle::from_raw_handle(handle as RawHandle);
+
+            let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
+            info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            if SetInformationJobObject(
+                handle,
+                JobObjectExtendedLimitInformation,
+                std::ptr::addr_of!(info) as *const core::ffi::c_void,
+                std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+            ) == 0
+            {
+                tracing::warn!(
+                    error = %io::Error::last_os_error(),
+                    "failed to set kill-on-close limit on managed engine job object"
+                );
+            }
+
+            match child.raw_handle() {
+                Some(raw) => {
+                    if AssignProcessToJobObject(handle, raw as HANDLE) == 0 {
+                        tracing::warn!(
+                            error = %io::Error::last_os_error(),
+                            "failed to assign managed engine to job object; \
+                             grandchild cleanup is not guaranteed"
+                        );
+                    }
+                }
+                None => tracing::warn!(
+                    "managed engine exited before it could be assigned to a job object"
+                ),
+            }
+
+            Some(JobObject(job))
+        }
+    }
+
+    /// Request graceful shutdown by sending a Ctrl-Break console event to the
+    /// managed engine's process group (its pid, since it was created with
+    /// `CREATE_NEW_PROCESS_GROUP`). Best effort: failures (e.g. no attached
+    /// console) are ignored so the caller proceeds to a forced kill.
+    #[cfg(windows)]
+    pub fn terminate(pid: u32) -> Result<()> {
+        use windows_sys::Win32::System::Console::{CTRL_BREAK_EVENT, GenerateConsoleCtrlEvent};
+
+        // SAFETY: a plain Win32 call with a process-group id and event code.
+        unsafe {
+            if GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pid) == 0 {
+                tracing::debug!(
+                    error = %io::Error::last_os_error(),
+                    "could not deliver Ctrl-Break to managed engine; \
+                     will fall back to terminating the job object"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Forcefully terminate every process assigned to the job object.
+    #[cfg(windows)]
+    pub fn kill(job: &JobObject) -> Result<()> {
+        use std::os::windows::io::AsRawHandle;
+
+        use windows_sys::Win32::Foundation::HANDLE;
+        use windows_sys::Win32::System::JobObjects::TerminateJobObject;
+
+        // SAFETY: `job` owns a valid job object handle for the duration of the
+        // borrow.
+        unsafe {
+            if TerminateJobObject(job.0.as_raw_handle() as HANDLE, 1) == 0 {
+                let error = io::Error::last_os_error();
+                return Err(error).context("failed to terminate managed engine job object");
+            }
+        }
+        Ok(())
     }
 }
 

@@ -5,12 +5,15 @@ import functools
 import json
 import logging
 import os
+import platform
 import sys
 import tempfile
 import uuid
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal
+
+DEFAULT_MP_METHOD = "fork" if platform.system() != "Windows" else "spawn"
 
 if TYPE_CHECKING:
     VLLM_HOST_IP: str = ""
@@ -65,7 +68,7 @@ if TYPE_CHECKING:
     VLLM_USE_RAY_V2_EXECUTOR_BACKEND: bool = False
     VLLM_DISTRIBUTED_USE_SPLIT_GROUP: bool = False
     VLLM_XLA_USE_SPMD: bool = False
-    VLLM_WORKER_MULTIPROC_METHOD: Literal["fork", "spawn"] = "fork"
+    VLLM_WORKER_MULTIPROC_METHOD: Literal["fork", "spawn"] = DEFAULT_MP_METHOD
     VLLM_ASSETS_CACHE: str = os.path.join(VLLM_CACHE_ROOT, "assets")
     VLLM_ASSETS_CACHE_MODEL_CLEAN: bool = False
     VLLM_IMAGE_FETCH_TIMEOUT: int = 5
@@ -157,6 +160,7 @@ if TYPE_CHECKING:
     VLLM_DP_MASTER_PORT: int = 0
     VLLM_RANDOMIZE_DP_DUMMY_INPUTS: bool = False
     VLLM_RAY_DP_PACK_STRATEGY: Literal["strict", "fill", "span"] = "strict"
+    VLLM_RAY_DP_PLACEMENT_NODE_IPS: str = ""
     VLLM_RAY_EXTRA_ENV_VAR_PREFIXES_TO_COPY: str = ""
     VLLM_RAY_EXTRA_ENV_VARS_TO_COPY: str = ""
     VLLM_MARLIN_USE_ATOMIC_ADD: bool = False
@@ -563,12 +567,14 @@ def _resolve_rust_frontend_path() -> str | None:
 
     if raw.lower() in ("auto", "1", "true"):
         pkg_dir = os.path.dirname(os.path.abspath(__file__))
-        candidate = os.path.join(pkg_dir, "vllm-rs")
+        # setuptools-rust appends `.exe` to the binary name on Windows.
+        exe_name = "vllm-rs.exe" if os.name == "nt" else "vllm-rs"
+        candidate = os.path.join(pkg_dir, exe_name)
         if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
             return candidate
 
         raise FileNotFoundError(
-            "VLLM_RUST_FRONTEND_PATH=auto but the vllm-rs binary was "
+            f"VLLM_RUST_FRONTEND_PATH=auto but the {exe_name} binary was "
             f"not found at {candidate}. "
             "Build with setuptools-rust or set the path explicitly."
         )
@@ -889,7 +895,7 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # Use dedicated multiprocess context for workers.
     # Both spawn and fork work
     "VLLM_WORKER_MULTIPROC_METHOD": env_with_choices(
-        "VLLM_WORKER_MULTIPROC_METHOD", "fork", ["spawn", "fork"]
+        "VLLM_WORKER_MULTIPROC_METHOD", DEFAULT_MP_METHOD, ["spawn", "fork"]
     ),
     # Path to the cache for storing downloaded assets
     "VLLM_ASSETS_CACHE": lambda: os.path.expanduser(
@@ -1323,6 +1329,13 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # This environment variable is ignored if data-parallel-backend is not Ray.
     "VLLM_RAY_DP_PACK_STRATEGY": lambda: os.getenv(
         "VLLM_RAY_DP_PACK_STRATEGY", "strict"
+    ),
+    # Optional comma-separated list of node IPs that Ray data-parallel
+    # placement groups may use. When set, create_dp_placement_groups only
+    # considers these nodes (the DP master node is always included).
+    # This environment variable is ignored if data-parallel-backend is not Ray.
+    "VLLM_RAY_DP_PLACEMENT_NODE_IPS": lambda: os.getenv(
+        "VLLM_RAY_DP_PLACEMENT_NODE_IPS", ""
     ),
     # Comma-separated *additional* prefixes of env vars to copy from the
     # driver to Ray workers.  These are merged with the built-in defaults

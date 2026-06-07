@@ -117,6 +117,13 @@ vllm-server = { path = "src/server" }
 vllm-text = { path = "src/text" }
 vllm-tokenizer = { path = "src/tokenizer" }
 vllm-tool-parser = { path = "src/tool-parser" }
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Console",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }
 winnow = "1.0.2"
 zeromq = { version = "0.6.0", default-features = false, features = [
     "tokio-runtime",

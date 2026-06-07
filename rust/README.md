@@ -87,3 +87,44 @@ curl http://127.0.0.1:8000/v1/chat/completions \
     "stream": true
   }'
 ```
+
+## Windows
+
+`vllm-rs` builds and runs on Windows; the binary is `vllm-rs.exe` and ships in the wheel as
+`vllm\vllm-rs.exe`. Platform-specific code is `cfg`-gated, so the Unix behavior is unchanged.
+Key differences:
+
+- **Supervised frontend** — enabled the same way, but Python passes `--host`/`--port` instead of
+  an inherited socket fd (Windows cannot inherit a listening socket into a non-Python child):
+
+  ```pwsh
+  $env:VLLM_USE_RUST_FRONTEND = "1"
+  $env:VLLM_RUST_FRONTEND_PATH = "auto"   # resolves vllm\vllm-rs.exe in the package
+  vllm serve Qwen/Qwen3-0.6B --host 127.0.0.1 --port 8000
+  ```
+
+- **Standalone managed engine** — `vllm-rs serve` spawns the Python engine into a kill-on-close
+  Windows Job Object, so the whole process subtree is torn down together. Pass the interpreter
+  explicitly:
+
+  ```pwsh
+  vllm-rs.exe serve Qwen/Qwen3-0.6B --python .\.venv\Scripts\python.exe --host 127.0.0.1 --port 8000
+  ```
+
+- **Build in isolation** — from a Visual Studio x64 developer environment:
+
+  ```pwsh
+  cargo build --release --manifest-path rust\src\cmd\Cargo.toml --features native-tls-vendored --bin vllm-rs
+  ```
+
+Windows constraints: the HTTP listener is TCP-only (no Unix-domain sockets), and
+`data_parallel_size > 1` with the Rust frontend is not supported yet.
+
+## Notes
+
+These apply to the Rust frontend on all platforms:
+
+- The frontend needs a model with a fast tokenizer (`tokenizer.json`) or tiktoken; models that
+  only ship a slow tokenizer (e.g. `facebook/opt-125m`) are rejected.
+- The reasoning trace is returned in a `reasoning` field (the Python frontend uses
+  `reasoning_content`), and `content` is omitted while the assistant message is empty.

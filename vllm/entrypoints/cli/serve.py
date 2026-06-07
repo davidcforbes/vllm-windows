@@ -2,10 +2,20 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
 import argparse
+import os
+import platform
 import signal
 import time
 
-import uvloop
+if platform.system() == "Windows":
+    import winloop as uvloop_impl
+    # Windows does not support fork
+    os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
+
+    # Disable libuv on Windows by default
+    os.environ["USE_LIBUV"] = os.environ.get("USE_LIBUV", "0")
+else:
+    import uvloop as uvloop_impl
 
 import vllm
 import vllm.envs as envs
@@ -145,7 +155,7 @@ class ServeSubcommand(CLISubcommand):
         else:
             # Single API server (this process).
             args.api_server_count = None
-            uvloop.run(run_server(args))
+            uvloop_impl.run(run_server(args))
 
     def validate(self, args: argparse.Namespace) -> None:
         validate_parsed_serve_args(args)
@@ -328,6 +338,11 @@ def run_multi_api_server(args: argparse.Namespace):
         )
 
         if rust_frontend_path:
+            # On Windows the pre-bound socket cannot be inherited by the Rust
+            # child; release it so the Rust frontend can bind args.host/args.port
+            # itself (see RustFrontendProcessManager).
+            if platform.system() == "Windows":
+                sock.close()
             # Start rust front-end process.
             api_server_manager = RustFrontendProcessManager(
                 binary_path=rust_frontend_path,

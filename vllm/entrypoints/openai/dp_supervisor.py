@@ -19,7 +19,12 @@ from multiprocessing.process import BaseProcess
 import aiohttp
 import psutil
 import uvicorn
-import uvloop
+
+if os.name == "nt":
+    # Windows uses winloop in place of uvloop (which is POSIX-only).
+    import winloop as uvloop
+else:
+    import uvloop
 from fastapi import FastAPI, Response
 
 from vllm.logger import init_logger

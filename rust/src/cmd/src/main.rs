@@ -60,16 +60,43 @@ fn shutdown_signal() -> CancellationToken {
             tokio::signal::ctrl_c().await.expect("failed to install Ctrl-C signal handler");
         };
 
-        let sigterm = async {
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-                .expect("failed to install SIGTERM signal handler")
-                .recv()
-                .await;
-        };
+        #[cfg(unix)]
+        {
+            let sigterm = async {
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                    .expect("failed to install SIGTERM signal handler")
+                    .recv()
+                    .await;
+            };
 
-        tokio::select! {
-            _ = ctrl_c => info!("received shutdown signal (Ctrl-C), shutting down..."),
-            _ = sigterm => info!("received shutdown signal (SIGTERM), shutting down..."),
+            tokio::select! {
+                _ = ctrl_c => info!("received shutdown signal (Ctrl-C), shutting down..."),
+                _ = sigterm => info!("received shutdown signal (SIGTERM), shutting down..."),
+            }
+        }
+
+        // Windows has no SIGTERM; cover the console-close and system-shutdown
+        // events the supervisor relies on, alongside Ctrl-C.
+        #[cfg(windows)]
+        {
+            let ctrl_close = async {
+                tokio::signal::windows::ctrl_close()
+                    .expect("failed to install Ctrl-Close signal handler")
+                    .recv()
+                    .await;
+            };
+            let ctrl_shutdown = async {
+                tokio::signal::windows::ctrl_shutdown()
+                    .expect("failed to install Ctrl-Shutdown signal handler")
+                    .recv()
+                    .await;
+            };
+
+            tokio::select! {
+                _ = ctrl_c => info!("received shutdown signal (Ctrl-C), shutting down..."),
+                _ = ctrl_close => info!("received shutdown signal (Ctrl-Close), shutting down..."),
+                _ = ctrl_shutdown => info!("received shutdown signal (system shutdown), shutting down..."),
+            }
         }
 
         shutdown.cancel();
@@ -96,7 +123,10 @@ fn main() -> Result<()> {
 
 async fn async_main(cli: Cli) -> Result<()> {
     match cli.command {
-        Command::Frontend(args) => vllm_server::serve(args.into_config(), shutdown_signal()).await,
+        Command::Frontend(args) => {
+            let config = args.into_config().map_err(|message| anyhow!(message))?;
+            vllm_server::serve(config, shutdown_signal()).await
+        }
         Command::Serve(args) => {
             let handshake_port = args.managed_engine.resolve_handshake_port()?;
 
