@@ -24,7 +24,7 @@ This project aims to implement an alternative frontend to the vLLM Engine in Rus
         - Use `bail_foo!(...)` only in statement positions where you want to exit the current `Result`-returning function immediately. Prefer it over `return Err(foo!(...))` in those cases.
         - If a variant has extra structured fields, prefer the generated macro form `foo!(field = value, "message")` rather than manually writing `Error::Foo { ... }`.
 - Since the project is still in early stage, it's fine to break API and make non-backwards-compatible changes as needed.
-- Currently the project is only targeting Unix-like platforms, so it's fine to use Unix-specific APIs without extra compatibility layers like `cfg(unix)`
+- This fork targets **Windows in addition to Unix**. Platform-specific code MUST be `cfg`-gated so the Unix path stays unchanged: POSIX-only code under `#[cfg(unix)]`, the Windows equivalent under `#[cfg(windows)]`. Follow the existing splits as patterns: process-group teardown (setpgid/kill on Unix, a kill-on-close Job Object on Windows), the HTTP listener (Unix-domain-or-TCP on Unix, TCP-only on Windows), and shutdown signals (SIGTERM vs ctrl_close/ctrl_shutdown). Tests that rely on Unix sockets or shebang execution must be `#[cfg(all(test, unix))]`; Windows-only deps go under `[target.'cfg(windows)'.dependencies]`.
 
 ## Testing
 

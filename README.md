@@ -26,6 +26,10 @@ vLLM for Windows build & kernels. This repository will be updated when new versi
 
 #### NEW FEATURE 🔥 CUDA 13 + Blackwell GPU support on Windows
 
+#### NEW FEATURE 🔥 Rust frontend (`vllm-rs`) support on Windows
+
+The optional high-performance Rust serving frontend now builds and runs on Windows. Enable it with `set VLLM_USE_RUST_FRONTEND=1` before `vllm serve`. See [`rust/README.md`](rust/README.md#windows) for usage and constraints.
+
 #### NEW FEATURE 🔥 NCCL + Tensor / Pipeline parallelism for multi-gpu inference support on Windows
 
 1. Follow the instructions [here](https://github.com/SystemPanic/nccl-windows/tree/nccl-windows#building-from-source) to compile NCCL for your system.
